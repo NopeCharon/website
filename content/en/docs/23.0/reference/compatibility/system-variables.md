@@ -34,7 +34,7 @@ VTGate doesn't change global variables. It accepts `SET GLOBAL var = value` and 
 
 VTGate fills in the value of `@@var` and `@@session.var` in a query itself, without reading it from MySQL, for:
 
-* The Vitess-aware variables, except `transaction_read_only` and `tx_read_only`.
+* The Vitess-aware variables, except `transaction_read_only` and `tx_read_only`. There are two more exceptions: `SELECT @@charset` and `SELECT @@names` fail, and `SELECT @@skip_query_plan_cache` returns the value of `client_found_rows` instead of its own setting.
 * The read-only variables `version`, `version_comment` and `socket`. `@@version` is the MySQL version that VTGate advertises, set with the VTGate `--mysql-server-version` flag, and `@@version_comment` is the Vitess version.
 * Connection settings that the session has changed. VTGate returns the session's value.
 
@@ -52,7 +52,7 @@ VTGate keeps these variables in the session. Setting them never sends a statemen
 | `client_found_rows` | `0` or `1` | `1` if the client connected with the `CLIENT_FOUND_ROWS` capability flag, otherwise `0` | When `1`, the affected-rows count of an `UPDATE` is the number of rows it matched instead of the number of rows it changed. |
 | `charset`, `names` | `utf8`, `utf8mb4`, `latin1` or `default` | | Set by `SET NAMES ...` and `SET CHARACTER SET ...`. VTGate accepts these values and rejects any other with `charset/name ... is not supported`, but the statement doesn't change the connection character set. See [Collations](../../../user-guides/configuration-basic/collations/#configuring-the-default-connection-charset-for-a-vitess-cluster). |
 | `ddl_strategy` | A DDL strategy, such as `vitess --postpone-completion` | The VTGate `--ddl-strategy` flag, `direct` by default | The strategy for DDL statements in the session. See [DDL strategies](../../../user-guides/schema-changes/ddl-strategies/). |
-| `enable_system_settings` | `0` or `1` | The VTGate `--enable-system-settings` flag, `true` by default | Whether VTGate applies [connection settings](#connection-settings) for the session. When `0`, it ignores them. |
+| `enable_system_settings` | `0` or `1` | The VTGate `--enable-system-settings` flag, `true` by default | Whether VTGate applies [connection settings](#connection-settings) for the session. The flag sets the initial value, and a client can change it. When `0`, VTGate ignores them. |
 | `migration_context` | Letters, digits, `_`, `-` and `:` | Empty | The migration context of Online DDL migrations that the session submits. When empty, VTGate uses `@@session_uuid`. See [Advanced usage](../../../user-guides/schema-changes/advanced-usage/#duplicate-migration-detection). |
 | `query_timeout` | Milliseconds | `0` | The timeout for each query in the session. `0` means the VTGate `--query-timeout` flag applies. A [`QUERY_TIMEOUT_MS`](../../../user-guides/configuration-advanced/comment-directives/#query-timeouts-query_timeout_ms) comment directive overrides it for a single query. |
 | `session_uuid` | | A random UUID | Identifies the VTGate session. It can be read but not set: `SET session_uuid` returns `unknown system variable 'session_uuid'`. |
@@ -77,7 +77,7 @@ When a session sets one of them, VTGate first evaluates the new value on a table
 
 To keep connection pooling as effective as possible, set the global value in MySQL to the value that your application uses, so that its `SET` statements don't change anything.
 
-If the VTGate `--enable-system-settings` flag is `false`, or the session has set `enable_system_settings` to `0`, VTGate [ignores](#ignored-variables) connection settings instead.
+The VTGate `--enable-system-settings` flag only sets the initial value of `enable_system_settings` for new sessions. A client can change it with `SET enable_system_settings = 1`. If the session's value is `0`, VTGate [ignores](#ignored-variables) connection settings instead.
 
 ### SQL mode
 
